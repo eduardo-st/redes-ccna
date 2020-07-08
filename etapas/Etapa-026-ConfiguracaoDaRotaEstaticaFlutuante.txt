@@ -1,0 +1,115 @@
+!Autor: Robson Vaamonde
+!Procedimentos em TI: http://procedimentosemti.com.br
+!Bora para Prática: http://boraparapratica.com.br
+!Robson Vaamonde: http://vaamonde.com.br
+!Facebook Procedimentos em TI: https://www.facebook.com/ProcedimentosEmTi
+!Facebook Bora para Prática: https://www.facebook.com/BoraParaPratica
+!Instagram Procedimentos em TI: https://www.instagram.com/procedimentoem
+!YouTUBE Bora Para Prática: https://www.youtube.com/boraparapratica
+!Data de criação: 11/05/2020
+!Data de atualização: 11/05/2020
+!Versão: 0.01
+!Testado e homologado no Cisco Packet Tracer 7.3 e GNS3 2.2.7
+
+!OBSERVAÇÃO IMPORTANTE: NA NOVA CERTIFICAÇÃO DA CISCO CCNAv7 EXAME 200-301 NÃO É MAIS COBRADO CONHECIMENTOS EM
+!CONFIGURAÇÕES DE PLACA DE REDE SERIAL OU LINK DE WAN SERIAL, UMA VEZ QUE ESSAS TECNOLOGIAS JÁ CAIRAM EM DESUSO, 
+!OUTRAS TECNOLOGIAS COMO: FRAME RELAY, FAX MODEM ISDN (Integrated Services Digital Network), ATM (Asynchronous 
+!Transfer Mode), X.25, HDLC (High-Level Data Link Control), SDLC (Synchronous Data Link Control), PPP (Point to
+!Point Protocol), ETC. TAMBÉM ENTRAM NA LISTA.
+
+!PRIMEIRA ETAPA: Adicionando o Módulo HWIC-2T (High-Speed WAN Interface Card) nos Router 1941
+!DICA: Router 1941-2 será o DCE (Data Circuit-Terminating Equipment) e o Router 1941-1 será o DTE (Data Terminal Equipment)
+!OBSERVAÇÃO: nessa topologia não será configurado o Modem CSU/DSU (Channel Service Unit/Data Service Unit), pois no Cisco
+!Packet Tracer essa opção não está disponível
+
+!SEGUNDA ETAPA: Configuração do Router 1941-2
+!Acessando o modo EXEC Privilégiado
+enable
+
+!Verificando se o módulo foi adicionado corretamente
+show version
+show ip interface brief
+
+	!Acessando o modo de Configuração Global de Comandos
+	configure terminal
+	
+		!Configurando a Interface de Interligação com o Router 1941-1
+		!OBSERVAÇÃO: nomenclatura da Interface: 0 = primeiro módulo/slot do Router, 0 = cartão HWIC e 0 = primeira interface serial
+		interface serial 0/0/0
+		
+			!Configurando a descrição da Interface
+			description Interface de Backup WAN Serial com o Router 1941-1
+			
+			!Configuração do endereço IPv4 do Router 1941-2
+			ip address 10.0.0.6 255.255.255.252
+			
+			!Configuração do Clock Rate (Frequência do Relógio) da Interface Serial
+			!DICA: o Clock Rate define a taxa de bits transmitida na interface serial, é uma definição que afeta o hardware
+			!OBSERVAÇÃO: o Clock Rate só está disponível em Interface Seriais que estejam configuradas no modo DCE ou com Cabo DCE
+			!OBSERVAÇÃO: configurar essa opção em Interface Serial DTE você recebe a mensagem: This command applies only to DCE interfaces
+			!OBSERVAÇÃO: velocidades da Interface Serial vária de: 300 até 4000000bps (Bits por Segundo - bps, maior Taxa: 4000Kbps ou 4Mbps)
+			clock rate 2000000
+			
+			!Configuração do Bandwidth (Largura de Banda) da Interface Serial
+			!DICA: o Bandwidth é uma indicação de largura de banda que a interface é capaz de transmitir, é uma definição que não interfere no hardware 
+			!OBSERVAÇÃO: essa informação é utilizada nos protocolos de roteamento dinâmico para determinar a Métrica (Custo) do Link
+			!OBSERVAÇÃO: as configurações de largura de banda vária de: 1 até 10000000  (Kilo Bits por Segundo - Kbps ou 10.000Mbps)
+			!OBSERVAÇÃO: o valor do bandwidth é determinado da seguinte forma: valor do clock rate / 1000 = valor Kbps
+			bandwidth 2000
+			
+			!Configuração do Encapsulamento Back-to-Back (Ida e Volta) da Interface Serial
+			!DICA: a configuração do encapsulamento da interface determina a forma como os dados serão transmitidos em Camada 2
+			!OBSERVAÇÃO: o encapsulamento serial padrão nos routers Cisco é o HDLC (High-Level Data Link Control)
+			!OBSERVAÇÃO: temos as opções de encapsulamento suportadas no Cisco Packet Tracer: Frame-Relay e PPP (Point-to-Point Protocol)
+			!OBSERVAÇÃO: essa configuração não é necessária, uma vez que a configuração padrão da interface serial é HDLC
+			encapsulation hdlc
+			
+			!Inicializando a Interface Serial do Router 1941-2
+			no shutdown
+			exit
+			
+		!Configurando a Rota Estática Fluante para atingir a Rede 192.168.1.0/24
+		!DICA: rota estática fluante é igual a rota estática normal, a diferença está no valor do AD (Distância Administrativa)
+		!DICA: rota estática fluante é muito utilizada em Links de Backup e Redundância nas Conexões de WAN ou Internet
+		!OBSERVAÇÃO: quando o roteador aprende duas rotas para o mesmo destino, ele dará preferência para a menor Distância Administrativa
+		!OBSERVAÇÃO: os valores de Distância Administrativa pode variar de: 1 até 255 (Rota estática padrão tem AD de 1 (um))
+		!OBSERVAÇÃO: caso os AD's sejam iguais, será análisado os valores de Métrica (Custo) para o desempate e preferência da rota
+		!OBSERVAÇÃO: rota estática fluante para o mesmo destino não aparece na tabela de roteamento, somente quando a interface ou endereço
+		!de próximo salto estiver inacessível ou down
+		ip route 192.168.1.0 255.255.255.0 serial 0/0/0 5
+		end
+	
+!Salvando as configurações da memória RAM para a memória NVRAM
+write
+
+!TERCEIRA ETAPA: Configuração do Router 1941-1
+!Acessando o modo EXEC Privilégiado
+enable
+	configure terminal
+		interface serial 0/0/0
+			description Interface de Backup WAN Serial com o Router 1941-2
+			ip address 10.0.0.5 255.255.255.252
+			bandwidth 2000
+			encapsulation hdlc
+			no shutdown
+			exit
+		ip route 192.168.2.0 255.255.255.0 serial 0/0/0 5
+		ip route 192.168.3.0 255.255.255.0 serial 0/0/0 5
+		end
+write
+
+!Visualizando as configurações da memória RAM
+show running-config | section interface
+show running-config | section ip route
+
+!Verificando as informações das Interfaces e Tabela de Roteamento Local
+show controller serial 0/0/0
+show ip interface brief
+show ip route
+show ip route connected
+show ip route static
+show ip route summary
+
+!Testando a conexão nos Desktops da Rede com o Protocolo ICMP
+ping -n 1000 192.168.1.1
+tracert 192.168.1.1

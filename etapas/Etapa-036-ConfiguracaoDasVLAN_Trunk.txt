@@ -1,0 +1,239 @@
+!Autor: Robson Vaamonde
+!Procedimentos em TI: http://procedimentosemti.com.br
+!Bora para Prática: http://boraparapratica.com.br
+!Robson Vaamonde: http://vaamonde.com.br
+!Facebook Procedimentos em TI: https://www.facebook.com/ProcedimentosEmTi
+!Facebook Bora para Prática: https://www.facebook.com/BoraParaPratica
+!Instagram Procedimentos em TI: https://www.instagram.com/procedimentoem
+!YouTUBE Bora Para Prática: https://www.youtube.com/boraparapratica
+!Data de criação: 22/05/2020
+!Data de atualização: 22/05/2020
+!Versão: 0.01
+!Testado e homologado no Cisco Packet Tracer 7.3 e GNS3 2.2.7
+
+!As VLANs (Virtual LANs – Redes Locais Virtuais) é uma rede logicamente independente, várias VLANs podem coexistir
+!em um mesmo Switch, de forma a dividir uma rede local em mais de uma rede, criando domínios de Broadcast separados.
+
+!As VLANs permitem a segmentação das redes físicas, sendo que a comunicação entre máquinas de VLANs diferentes terá
+!de passar obrigatoriamente por um Roteador ou outro equipamento capaz de realizar o Roteamento, esse equipamento
+!será o responsável por encaminhar o tráfego entre as VLANs distintas (iguais).
+
+!As VLANs oferecem vantagens das quais se destacam: segurança, escalabilidade, flexibilidade, redução de custos, etc.
+
+!Um Switch com a capacidade de criar VLANs suporta dois tipos de configurações de porta: Access Port (porta de acesso
+!para conexões de dispositivos finais) e Trunk Port (porta de tronco para interligação de Switch, Router ou Server)
+
+!Os range de VLANs nos Switches Cisco são: 0 é 4095 Reservadas (Reserved - apenas para uso do sistema operacional IOS,
+!você não pode ver ou usar essas VLANs), 1 Padrão/Nativa (Default/Native - você pode usar essa VLAN, está associada por
+!padrão em todas as Portas do Switch, você não pode deletar essa VLAN), 2 até 1001 Nativas (Normal - usadas para as
+!VLANs Ethernet, você pode criar, usar e excluir essas VLANs, são armazenadas no arquivo vlan.dat), 1002 até 1005 Nativa
+!(Normal - padrões da Cisco para Redes FDDI (Fiber Distributed Data Interface) e Token Ring, você não pode excluir essas
+!VLANs) e 1006 até 4094 Extendidas (Extended elas são usadas principalmente em redes de provedores de serviços para 
+!permitir o provisionamento do número do assinante).
+
+!Exite também dois tipos de associações de VLANs: VLANs Estáticas (Static - configurada manualmente na porta de rede do
+!Switch ou do Router) e VLANs Dinâmicas (Dynamic - são criadas e alteradas dinamicamente via Software como por exemplo
+!o VMPS (VLAN Management Policy Server))
+
+!Uma Porta de Acesso (access), permite associar uma porta do Switch a uma VLAN, as portas do tipo acesso são usadas
+!para conectar dispositivos finais (Desktop, Notebook, Impressoras, Access Point, etc), por padrão, todas as portas
+!dos Switches estão associadas na VLAN Padrão/Nativa 1, que transporta os dados sem marcação (Untagged VLAN).
+
+!Uma Porta de Tronco (trunk), normalmente é usada para interligação de Switches ou ligação de Roteadores e Servidores, ela
+!permite a passagem de tráfego de várias VLANs, configurando uma porta como Trunk, todo o tráfego de todas as VLANs criadas
+!no Switch podem passar por ela, no entanto o administrador pode limitar o número de VLANs que podem passar pelo Trunk.
+
+!PRIMEIRA ETAPA: Configuração das VLANs e Trunk no Switch Layer 3 3560
+!Acessando o modo EXEC Privilégiado
+enable
+
+	!Acessando o modo de Configuração Global de Comandos
+	configure terminal
+
+		!Criando as VLANs Standard (Padrão) no Switch Layer 3 3560 com VTP Server
+		!DICA: por padrão é recomendado trabalhar nos Switches Catalyst a faixa de VLANs Standard (padrão de 2 até 1001)
+		!ERRATA: no vídeo eu falo que as VLANs Padrão/Nativas vai de 1 até 1001, correto é: 2 até 1001 conforme descrito em DICA
+		!OBSERVAÇÃO: no Switch Layer 3 3560 foi configurado o recurso de VTP Server, que centraliza a administração das VLANs
+		vlan 10
+			!Configurando o nome da VLAN Standard
+			!DICA: a configuração do nome da VLAN facilita na administração e auditoria com o comando: show vlan brief
+			!OBSERVAÇÃO: para criar uma nova VLAN não é necessário sair do modo de configuração de VLAN com o comando exit
+			name adm
+		vlan 20
+			name cap 
+		vlan 30
+			name car 
+		vlan 40
+			name est
+		vlan 50
+			name guest
+		vlan 90
+			name native
+		vlan 99
+			name admin
+		vlan 100
+			name server
+			exit
+		
+		!Configurando as Interface de Trunk com os Switches Layer 2 2960
+		interface range gigabitEthernet 0/1 - 2
+			description Interface de Trunk com os Switches Layer 2 2960
+			
+			!Configurando o modo de Trunk (Tronco) da Interface do Switch Layer 3
+			!DICA: por padrão o recurso de DTP (Dynamic Trunking Protocol) está habilitado nas portas dos Switches
+			!OBSERVAÇÃO: é recomendado configurar as portas de Trunk em nossa topologia que utiliza o VTP é o STP
+			!OBSERVAÇÃO: para configurar a Porta de Trunk em Switch Layer 3 é necessário configurar o protocolo 802.1q
+			switchport trunk encapsulation dot1q 
+			
+			!Configurando o modo de Trunk (Tronco) da Interface
+			switchport mode trunk
+
+			!Desabilitando a Auto-negociação da Interface
+			switchport nonegotiate
+
+			!Configurando a VLAN Nativa no Trunk do Switch Layer 3
+			!DICA: por motivo de segurança é recomendado alterar a VLAN Nativa de gerenciamento para outra VLAN Nativa
+			!OBSERVAÇÃO: por padrão a VLAN Nativa de gerenciamento é 1 que transporta pacotes sem marcação (Untagged VLAN)
+			!OBSERVAÇÃO: se alterar a VLAN Nativa no Trunk do Switch Layer 3 é necessário alterar em todos os Switches
+			switchport trunk native vlan 90
+			exit
+
+		!Configurando a Interface de Trunk com o Router 2911
+		interface fastEthernet 0/24
+			description Interface de Trunk com o Router 2911
+			switchport trunk encapsulation dot1q 
+			switchport mode trunk
+			switchport nonegotiate
+			switchport trunk native vlan 90
+			exit
+
+		!Configurando a Interface de Acesso a VLAN 100 do Servidor
+		interface fastEthernet 0/1
+			description Interface de Acesso da VLAN 100 do Servidor
+			
+			!Configurando o modo de Access (Acesso) da Interface do Servidor
+			!DICA: essa configuração já foi comentada nas configurações do switchport e port-security
+			!OBSERVAÇÃO: para a correta configuração da VLAN na porta de rede é recomendado mudar o modo da porta primeiro
+			switchport mode access
+			switchport nonegotiate
+			switchport port-security
+			switchport port-security maximum 1
+			switchport port-security mac-address sticky
+			switchport port-security violation restrict
+			
+			!Configurando o acesso a VLAN 100 da Interface do Servidor
+			!DICA: por padrão só podemos configurar uma VLAN na porta de rede do Switch
+			!OBSERVAÇÃO: a partir do momento que configuramos a VLAN na porta do Switch, todos os quadros (frames)
+			!recebem a Tag (etiqueta) dot1q (IEEE 802.1Q) no seu frame (quadro) Ethernet quando transmite pacotes
+			!pela porta de rede do switch
+			!OBSERVAÇÃO: existe a possibilidade de configurar mais uma VLAN de VoIP na mesma porta de acesso, usando o
+			!comando: switchport voice vlan
+			switchport access vlan 100
+			exit
+		
+		!Configurando a Interface de Acesso a VLAN 50 do Access Point 802.11-AC
+		interface fastEthernet 0/2
+			description Interface de Acesso da VLAN 50 do Access Point AC
+			switchport mode access
+			switchport access vlan 50
+			switchport nonegotiate
+			switchport port-security
+			switchport port-security mac-address sticky
+			switchport port-security maximum 5
+			switchport port-security violation restrict
+			exit
+
+		!Configurando a Interface de Gerenciamento SVI do Switch Layer 3 3560
+		!OBSERVAÇÃO: as SVIs dos Switches Layer 2 e 3 serão configuradas utilizando a VLAN 99
+		interface vlan 99
+			description Interface de SVI de Gerenciamento Switch Layer 3 3560
+			ip address 192.168.99.252 255.255.255.0
+			no shutdown
+			exit
+		
+		!Desativando as Interfaces que não estão sendo utilizadas no Switch Layer 3 3560
+		interface range fastEthernet 0/3 - 23
+			shutdown
+			exit
+		
+		!Configurando o Gateway Padrão do Gerenciamento do Switch Layer 3 3560
+		ip default-gateway 192.168.99.254
+		end 
+write
+
+!SEGUNDA ETAPA: Configuração das VLANs e Trunks nos Switches Layer 2 2960
+enable
+	configure terminal
+		interface range gigabitEthernet 0/1 - 2
+			description Interface de Trunk com os Switches Layer 2 e 3 
+			!OBSERVAÇÃO: nos Switches Layer 2 não é necessário configurar o protocolo 802.1q nas portas de Trunk
+			switchport mode trunk
+			switchport nonegotiate
+			switchport trunk native vlan 90
+			exit
+		interface range fastEthernet 0/1 - 5
+			description Interface de Acesso do Desktop da VLAN 10
+			switchport mode access
+			switchport access vlan 10
+			switchport nonegotiate
+			switchport port-security
+			switchport port-security maximum 1
+			switchport port-security mac-address sticky
+			switchport port-security violation restrict
+			exit
+		interface range fastEthernet 0/6 - 10
+			description Interface de Acesso do Desktop da VLAN 20
+			switchport mode access
+			switchport access vlan 20
+			switchport nonegotiate
+			switchport port-security
+			switchport port-security maximum 1
+			switchport port-security mac-address sticky
+			switchport port-security violation restrict
+			exit
+		interface range fastEthernet 0/11 - 15
+			description Interface de Acesso do Desktop da VLAN 30
+			switchport mode access
+			switchport access vlan 30
+			switchport nonegotiate
+			switchport port-security
+			switchport port-security maximum 1
+			switchport port-security mac-address sticky
+			switchport port-security violation restrict
+			exit
+		interface range fastEthernet 0/16 - 20
+			description Interface de Acesso do Desktop da VLAN 40
+			switchport mode access
+			switchport access vlan 40
+			switchport nonegotiate
+			switchport port-security
+			switchport port-security maximum 1
+			switchport port-security mac-address sticky
+			switchport port-security violation restrict
+		interface range fastEthernet 0/21 - 24
+			shutdown
+			exit
+		interface vlan 99
+			description Interface de SVI de Gerenciamento Switch Layer 2 2960
+			!OBSERVAÇÃO: alterar o endereço IPv4 do segundo Switch Layer 2 para 251 antes de copiar o script 
+			ip address 192.168.99.250 255.255.255.0
+			no shutdown
+			exit
+		!Configurando o Gateway Padrão do Gerenciamento do Switch Layer 2 2960
+		ip default-gateway 192.168.99.254
+		end 
+write
+
+!Visualizando as configurações da memória RAM
+show running-config | section interface
+
+!Verificando as informações das VLAN, VTP e Trunk
+show vlan brief
+show vlan id 10
+show vlan name adm
+show vtp status
+show vtp counters
+show interface status
+show interface trunk
+show interfaces gigabitEthernet 0/1 status
+show interfaces gigabitEthernet 0/1 switchport

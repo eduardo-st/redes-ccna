@@ -1,0 +1,174 @@
+!Autor: Robson Vaamonde
+!Procedimentos em TI: http://procedimentosemti.com.br
+!Bora para Prática: http://boraparapratica.com.br
+!Robson Vaamonde: http://vaamonde.com.br
+!Facebook Procedimentos em TI: https://www.facebook.com/ProcedimentosEmTi
+!Facebook Bora para Prática: https://www.facebook.com/BoraParaPratica
+!Instagram Procedimentos em TI: https://www.instagram.com/procedimentoem
+!YouTUBE Bora Para Prática: https://www.youtube.com/boraparapratica
+!Data de criação: 31/05/2020
+!Data de atualização: 31/05/2020
+!Versão: 0.01
+!Testado e homologado no Cisco Packet Tracer 7.3 e GNS3 2.2.7
+
+!O IPv6 (Internet Protocol Version 6) é a versão mais atual do Protocolo de Internet, originalmente oficializado em 
+!6 de Junho de 2012, é fruto do esforço do IETF (Internet Engineering Task Force) para criar a "nova geração do IP",
+!cujas linhas mestras foram descritas por Scott Bradner e Allison Marken, em 1994, na RFC 1752. Sua principal
+!especificação encontra-se na RFC 2460.
+
+!Comparação do IPv6 em relação ao IPv4: IPv6 2 ^ 128 bits = +340 undecilhões de possibilidades, IPv4 2 ^ 32 bits = 
+!+4.2 bilhões de possibilidades, em comparação com o MAC Address 2 ^ 48 bits = +281 trilhões de possibilidades.
+
+!Diferança básica do Protocolo IPv6 para IPv4: IPv6 é configurado em Hexadecimal - IPv4 é configurado em Decimal
+!OBSERVAÇÃO: vale lembrar que o Endereço MAC também é em Hexadecimal (00:00:00:00:00:00 ou FF:FF:FF:FF:FF:FF)
+
+!Possibilidades de trabalhar o IPv6 junto com o IPv4: Pilha Dupla (os dois protocolos trabalhando simultaneamente), 
+!Encapsulamento/Tunelamento (protocolo IPv6 encapsulado dentro do protocolo IPv4 6over4), NAT64 (Conversão/Tradução
+!protocolo IPv6 nativo se comunicando com protocolo IPv4 nativo) e vários outros tipos de transição está disponível.
+
+!Formato da representação do Endereço IPv6: 8 Hextets separados por : (dois pontos) cada Hextets possui 16 Bits
+!(16 * 8 = 128 Bits) - Exemplo: 0000:0000:0000:0000:0000:0000:0000:0000 ou FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF
+!OBSERVAÇÃO: vale lembrar que o Endereço IPv4 trabalha com 4 Octetos separados por . (ponto) - Exemplo: 0.0.0.0 ou 
+!255.255.255.255 (4 * 8 = 32 Bits)
+
+!Métodos de Comunicação do Protocolo IPv6: Unicast (origem - destino), Multicast (origem - múltiplos destinos) e 
+!Anycast (origem - múltiplos destinos mais próximo da origem) o protocolo IPv6 não trabalha com Broadcast (origem -
+!para todos os destinos)
+
+!Alguns Endereços IPv6 Unicast: Global Unicast (equivalente aos endereços Públicos IPv4 - Faixa: 2000::/3), Link
+!Local (atribuído automaticamente, utilizando o Prefixo FE80::/64 - EUI64), Loopback (representado pelo endereço
+!Unicast 0:0:0:0:0:0:0:1/128 ou ::1), Não Especificado (::/128 ou ::) e o endereço Unique Local Address ULA (igual
+!aos Endereços de Classe Privado do IPv4 (Classes A, B e C), faixa de Prefixo FC00::/7, FDFF::/7 e FEC0::/10).
+
+!Faixa dos Endereços de Link Local (FE80 até FEBF::/10), Faixa dos Endereços de Global Unicast (2000 até 3FFF::/64)
+!Endereços de Link Local são divididos em: Prefixo Local (10bits) - Remanescentes (54bits) - ID Interface (64bits)
+!Endereços de Global Unicast são divididos em: Prefixo Global (48bits) - ID Sub-Rede (16bits) - ID Interface (64bits)
+
+!Regras para omissão dos 0 (zeros) no Protocolo IPv6 para endereços de Link Local, Global Unicast ou Unique Local
+!Regra 01: omitir os 0 à esquerda: 2001:0123:0012:0003:0000:0000:0000:0200/64 = 2001:123:12:3:0:0:0:200/64
+!Regra 02: omitir o segmento/sequência de 0: 2001:123:12:3::200/64 (OBSERVAÇÃO: SÓ PODE SER FEITO UMA VEZ POR SEGMENTO)
+
+!IMPORTANTE: O protocolo IPv6 não é Case Sensitive (não faz diferença de Maiúsculas ou Minúsculas) na sua configuração
+!IMPORTANTE: O protocolo IPv6 não trabalha com Máscara de Rede, sua configuração e feita utilizando o Prefixo de Rede
+!IMPORTANTE: O protocolo IPv6 trabalha com o conceito de descoberta e auto-configuração dos Prefixos/Sufixos de Rede
+!IMPORTANTE: O protocolo IPv6 pode ser configurado Manualmente, utilizando DHCPv6 Server ou Auto-Configuração SLAAC
+!IMPORTANTE: O protocolo IPv6 nas opções de Auto-Configuração ele utiliza o recurso do EUI64 para a criação do Sufixo 
+
+!PRIMEIRA ETAPA: Configuração dos Endereços de Link Local e Global Unicast nos Desktops e Servidor
+!Faixa Link Local: FE80::/10
+!Faixa Global Unicast: 2001:ABCD:1234:1::/64
+!Endereço IPv6 do Gateway: FE80::254
+!Endereço IPv6 do DNS Server: 2001:ABCD:1234:3::1
+
+!Verificando as informações de Endereços IPv6 nos Desktops e Servidor
+ipv6config
+ping FE80::1
+ping 2001:ABCD:1234:1::1
+
+!SEGUNDA ETAPA: Configuração do Router 1941-1
+enable
+	configure terminal
+		
+		!Habilitando o Recurso de Ecaminhamento do Protocolo IPv6
+		!DICA: habilitando o recurso do IPv6 Unicast Routing no roteador, ele vai suportar o encaminhamento de pacotes IPv6
+		!OBSERVAÇÃO: por padrão esse recurso está desabilitado no roteador, recomendo habilitar somente se for necessário
+		!IMPORTANTE: com esse recurso habilitado essa topologia vai trabalhar com Pilha Dupla (Dual Stack Topology)
+		ipv6 unicast-routing
+		
+		!Configurando a Interface de Gateway Local da LAN
+		interface gigabitEthernet 0/0
+
+			!Habilitando o Protocolo IPv6 na Interface
+			!DICA: esse opção habilita os recursos do Protocolo IPv6 na interface
+			!OBSERVAÇÃO: no Cisco Packet Tracer não é obrigatório habilitar esse recurso, pois os endereços IPv6 funciona
+			!sem essa configuração, mais recomendo habilitar, tanto no simulador como nos equipamentos reais
+			ipv6 enable
+
+			!Configurando o Endereço de Link Local IPv6
+			!DICA: o endereço de Link Local do Roteador, geralmente esse endereço é utilizado como Gateway da Rede Local
+			!OBSERVAÇÃO: em roteadores locais é indicado configurar o endereço de Link Local manualmente, não é necessário
+			!configurar o prefixo padrão do Link Local, somente o endereço IPv6 e indicar que ele é Link Local no final
+			!OBSERVAÇÃO: endereços de Link Local não é configurado o Prefixo Padrão (/10), somente o endereço IPv6
+			ipv6 address FE80::254 link-local
+			
+			!Configurando o Endereço de Global Unicast IPv6
+			!DICA: o Prefixo do Endereço Global Unicast geralmente é determinado pela operadora de Telecom ou ISP
+			!OBSERVAÇÃO: para a criação de subrede no IPv6 utilizamos o campo de ID Sub-Rede (16bits), endereços de Global
+			!Unicast é necessário configurar o Prefixo Padrão no final do Endereço IPv6
+			ipv6 address 2001:ABCD:1234:1::254/64
+			end
+write
+
+!ACRÉSCIMO - IMPORTANTE: NO CISCO PACKET TRACER VERSÃO 7.3 O SUPORTE AO PROTOCOLO IPv6 NO SWITCH LAYER 2 2960 SÓ FUNCIONA 
+!CORRETAMENTE NA VERSÃO 15.x DO IOS, RECOMENDO FAZER O UPGRADE DO IOS ANTES DA CONFIGURAÇÃO, NA PRIMEIRA TOPOLOGIA DESSE
+!CENÁRIO JÁ FOI EXECUTADO A ATUALIZAÇÃO NA ETAPA 008 (Atualização do Cisco IOS nos Switches 2960), MESMO EXECUTANDO A 
+!ATUALIZAÇÃO, FAZENDO A CONFIGURAÇÃO DO SDM PREFER, O PING DO DESKTOP PARA OS SWITCHES LAYER 2 2960 NÃO É CONCLUÍDO COM 
+!SUCESSO (Request timed out.), O PING DO SWITCH LAYER 2 PARA O DESKTOP TEM A MESMA FALHA (% Unrecognized host or address,
+!or protocol not running.) - ATÉ O MOMENTO DA GRAVAÇÃO DESSE VÍDEO: 12/06/2020 A FALHA PERSISTE, ESTANDO RELACIONADA 
+!APARENTEMENTE AO SIMULADOR (executando novos teste é analisando comentários no Fórum da Cisco), NOS EQUIPAMENTOS REAIS
+!ESSA FALHA NÃO ACONTECE.
+
+!ADENDO IMPORTANTE: TESTE FEITO NO DIA 16/06/2020, QUANDO É INICIADO A SIMULAÇÃO DO AMBIENTE, OS SWITCHES LAYER 2 2960
+!PERDE AS CONFIGURAÇÕES DO SDM E DAS CONFIGURAÇÕES DOS ENDEREÇOS IPv6, SENDO NECESSÁRIO FAZER O RELOAD DO EQUIPAMENTO PARA
+!O SDM VOLTAR A FUNCIONAR, MAIS AS CONFIGURAÇÕES DOS ENDEREÇOS IPv6 SÃO PERDIDAS, SENDO NECESSÁRIO REFAZER. DICA: RECOMENDO
+!NÃO PERDER TEMPO NESSAS CONFIGURAÇÕES NO CISCO PACKET TRACER 7.3, NA NOVA TOPOLOGIA QUE SERÁ CRIADA VOU UTILIZAR O ROUTER 
+!DA SÉRIE 4000 E SWITCH MULTILAYER DA SÉRIE 3650 QUE SÃO EQUIPAMENTOS ATUALIZADOS PARA OS NOVOS CENÁRIOS DO CCNAv7
+
+!TERCEIRA ETAPA: Configuração do Switch Layer 2 2960-1
+enable
+	configure terminal
+
+		!Habilitando o suporte ao Protocolo IPv6 no Switch Layer 2
+		!DICA: por padrão os Switches Layer 2 e 3 não tem suporte ao protocolo IPv6 habiltiado no IOS
+		!OBSERVAÇÃO: para habilitar o recurso do IPv6 nos Switches Layer 2 ou 3 utilizamos o SDM (Switching Database Manager)
+		!que tem o objetivo de gerenciar o uso da Memória TCAM (Ternary Content Addressable Memory) que é diferente da Tabela
+		!CAM (Content Addressable Memory) usado para configurar os recursos de Roteamente, ACL e QoS em Switches Catalyst
+		!IMPORTANTE: NA NOVA CERTIFICAÇÃO DA CISCO O CCNAv7 EXAME 200-301 NÃO É COBRADO CONFIGURAÇÕES DO PROTOCOLO IPv6 NOS
+		!SWITCHES LAYER 2 OU 3, TAMBÉM, CONHECIMENTOS PROFUNDOS EM SDM E TCAM, ESSES TÓPICOS SÃO ABORDADOS NO CCNP R&S.
+		sdm prefer dual-ipv4-and-ipv6 default
+		end
+write
+reload
+
+enable
+	configure terminal
+
+		!Configurando o endereço IPv6 na SVI do Switch Layer 2
+		!OBSERVAÇÃO: no Cisco Packet Tracer o Protocolo IPv6 é limitado nos Switches Layer 2 e 3 da Série Catalyst
+		!OBSERVAÇÃO: no Switch Layer 2 não temos a opção de configurar o ipv6 unicast-routing, esse recurso só está presente
+		!em Roteadores ou Switch Layer 3
+		interface vlan 1
+			ipv6 enable
+			ipv6 address FE80::250 link-local
+			ipv6 address 2001:ABCD:1234:1::250/64
+			end
+write
+
+!QUARTA ETAPA: Configuração do Switch Layer 2 2960-2
+enable
+	configure terminal
+		sdm prefer dual-ipv4-and-ipv6 default
+		end
+write
+reload
+
+enable
+	configure terminal
+		interface vlan 1
+			ipv6 enable
+			ipv6 address FE80::251 link-local
+			ipv6 address 2001:ABCD:1234:1::251/64
+			end
+write
+
+!Visualizando as configurações da memória RAM
+show running-config | section interface
+
+!Visualizando as informações dos endereços IPv6
+show ipv6 interface brief
+show ipv6 interface gigabitethernet 0/0
+show ipv6 route
+show sdm prefer
+show ipv6 interface vlan 1
+ping FE80::254
+ping 2001:ABCD:1234:1::254

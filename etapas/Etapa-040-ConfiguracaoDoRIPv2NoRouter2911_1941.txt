@@ -1,0 +1,152 @@
+!Autor: Robson Vaamonde
+!Procedimentos em TI: http://procedimentosemti.com.br
+!Bora para Prática: http://boraparapratica.com.br
+!Robson Vaamonde: http://vaamonde.com.br
+!Facebook Procedimentos em TI: https://www.facebook.com/ProcedimentosEmTi
+!Facebook Bora para Prática: https://www.facebook.com/BoraParaPratica
+!Instagram Procedimentos em TI: https://www.instagram.com/procedimentoem
+!YouTUBE Bora Para Prática: https://www.youtube.com/boraparapratica
+!Data de criação: 24/05/2020
+!Data de atualização: 24/05/2020
+!Versão: 0.01
+!Testado e homologado no Cisco Packet Tracer 7.3 e GNS3 2.2.7
+
+!OBSERVAÇÃO IMPORTANTE: NA NOVA CERTIFICAÇÃO DA CISCO O CCNAv7 EXAME 200-301 NÃO É MAIS COBRADO CONHECIMENTOS NO
+!PROTOCOLO DE ROTEAMENTO DINÂMICO RIP OU RIPv2, UMA VEZ QUE SUA IMPLEMENTAÇÃO EM REDES CORPORATIVAS ATUAIS CAIU
+!EM DESUSO, DEVIDO AO SEU ALGORITMO DE VETOR DE DISTÂNCIA SER LIMITADO EM REDES MAIS COMPLEXAS, PRINCIPALMENTE
+!NA INTERNET, MAIS RECOMENDO O SEU ESTUDO, POIS O RIP FOI O PRIMEIRO PROTOCOLO DE ROTEAMENTO DINÂMICO DESENVOLVIDO.
+
+!O RIP (Routing Information Protocol) é um protocolo de roteamento baseado no algoritmo de Vetor de Distância, ele
+!foi projetado para ser usado como um IGP (Interior Gateway Protocol) em redes de abrangência moderada com tamanho
+!máximo de 15 saltos (Hopes, Routers, Gateway), a primeira versão do RIP foi descrita na RFC 1058 em 1988.
+
+!O Protocolo RIP possui basicamente três versões: RIPv1 implementação original, limitado ao roteamento de Rede de Classe
+!Cheia/Completa (Classful), considerado obsoleto, RIPv2 introduziu o suporte para roteamento de Rede Sem Classe (Classless), 
+!autenticação, atualizações dinâmicas e anúncios Multicast (RFC 2453) e o RIPng (RIP Next Generation) que estende o RIPv2
+!para oferecer suporte ao roteamento do Protocolo IPv6 (RFC 2080).
+
+!Informações importantes do Protocolo RIPv2: Tipo de Protocolo de Vetor de Distância, utiliza o Algoritmo Bellman-Ford,
+!possui Distância Administrativa de 120, utiliza Métrica/Custo Padrão baseado em Contagem de Saltos (Hop Count) no máximo
+!de 15 saltos (16 saltos é considerado inacessível - unreachable), utiliza o Método de Transporte UDP, possui suporte aos
+!Protocolos IPv4/IPv6 utilizando o RIPng, possui suporte a Redes Sem Classe (Classless - CIDR Classless Inter-Domain Routing),
+!envia anúncios (advertisement) utilizando o endereço de Multicast 224.0.0.9, suporta Autenticação de Texto Plano (Plaintext)
+!ou com Criptografia MD5 (Message-Digest Algorithm 5), possui suporte a Sumarização de Redes e suporte a Balanceamento de
+!Carga para Rotas com o mesmo destino e custo.
+
+!O RIPv2 trabalha com os temporizadores de: 30s Update (atualização da tabela de roteamento), 180s Holddown (retenção para
+!atualização de rotas inacessíveis - unreachable), 180s Invalid (rota considerada inválida) e 240s Flush (tempo que se deve
+!passar antes que a rota seja removida da tabela de roteamento)
+
+!PRIMEIRA ETAPA: Configuração do Roteador 2911-1
+!Acessando o modo EXEC Privilégiado
+enable
+
+	!Acessando o modo de Configuração Global de Comandos
+	configure terminal
+
+		!Inicializando a Interface Física de Interligação com o Router 1941-2
+		interface gigabitEthernet 0/0/0
+			description Interface de Interligacao Fisica da WAN Fiber com o Router 1941-2
+			no shutdown
+			exit
+		
+		!Configurando a Interface Lógica de Interligação com o Router 1941-2
+		interface gigabitEthernet 0/0/0.999
+			!OBSERVAÇÃO: esse tipo de configuração é muito comum em Redes WAN Privadas como PAP-L2
+			description Interface Logica de Interligacao da WAN Fiber com o Router 1941-2
+			encapsulation dot1Q 999
+			ip address 10.0.0.9 255.255.255.252
+			exit
+
+		!Configurando o Processo Local do Protocolo de Roteamento Dinâmico RIPv2
+		!OBSERVAÇÃO: o protocolo RIPv2 trabalha somente com um processo local de roteamento por roteador
+		router rip
+
+			!Configurando a versão do Protocolo RIPv2
+			!DICA: configurar a versão 2 do protocolo RIP permite utilizar o recurso de Redes Sem Classe (Classless)
+			!OBSERVAÇÃO: após a configuração da versão do protocolo RIP, todos os roteadores do domínio do RIP precisam
+			!está configurados na mesma versão, para trocar anúncios e tabela de roteamento corretamente
+			version 2
+
+			!Configurando a Interface Passiva do Protocolo RIPv2
+			!DICA: as interface passivas do roteador não enviam anúncios do RIP pela sua interface, mais recebem anúncios
+			!de outros roteadores conectados nessa interface
+			!OBSERVAÇÃO: é recomendado sempre desativar os anúncios das interface que não vão participar do domínio do RIP
+			!ERRATA: no vídeo eu falo que a Interface gigabitEthernet 0/0 não vai participar do Domínio do Protocolo RIPv2
+			!correto seria: Que a Interface gigabitEthernet 0/0 não vai Enviar Anúncios do Protocolo RIPv2 nessa Interface
+			passive-interface gigabitEthernet 0/0
+
+			!Desabilitando o recurso de Auto-Sumarização do Protocolo RIPv2
+			!DICA: desabilitar o recurso de auto-sumarização do protocolo RIP facilita na análise das redes declaradas
+			!OBSERVAÇÃO: dependendo do tamanho da rede, é recomendado habilitar o recurso de sumarização para diminuir o
+			!tamanho da tabela de roteamento e os anúncios enviados na rede
+			no auto-summary
+
+			!Declarando as Redes Fisicamente Conectadas no Router 2911-1
+			!DICA: declarar as redes fisicamente conectadas no router que serão anúnciadas para todos os roteadores que
+			!fazem parte do domínio do protocolo RIP
+			!OBSERVAÇÃO: na declaração de rede do protocolo RIP não é necessário especificar a máscara de rede, o CIDR 
+			!ou máscara de rede coringa (wildcard mask)
+			!IMPORTANTE: declarar todos os endereços locais (LAN) e remotos (WAN) no processo do protocolo RIP
+			network 10.0.0.8
+			network 192.168.10.0
+			network 192.168.20.0
+			network 192.168.30.0
+			network 192.168.40.0
+			network 192.168.50.0
+			network 192.168.99.0
+			network 192.168.100.0
+			end
+write
+
+!SEGUNDA ETAPA: Configuração do Roteador 1941-2
+enable
+	configure terminal
+		interface gigabitEthernet 0/1/0
+			description Interface de Interligacao Fisica da WAN Fiber com o Router 2911
+			no shutdown
+			exit
+		interface gigabitEthernet 0/1/0.999
+			description Interface Logica de Interligação da WAN Fiber com o Router 2911
+			encapsulation dot1Q 999
+			ip address 10.0.0.10 255.255.255.252
+			exit
+
+		!Configurando o Protocolo de Roteamento Dinâmico RIPv2
+		router rip
+			version 2
+			!OBSERVAÇÃO: no roteador 1941-2 temos mais interfaces que não vão enviar anúncios do protocolo RIP
+			passive-interface gigabitEthernet 0/0
+			passive-interface gigabitEthernet 0/1
+			passive-interface serial 0/0/0
+			no auto-summary
+			network 10.0.0.0
+			network 10.0.0.4
+			network 10.0.0.8
+			network 10.0.0.252
+			network 192.168.2.0
+
+			!Configurando a Redistribuição de Rotas Estáticas do Roteador 1941-2
+			!DICA: o protocolo RIP permite redistribuir redes aprendidas no roteador através de outros protocolos
+			!de roteamento, como por exemplo: Rota Etática, EIGRP, OSPF, etc
+			!OBSERVAÇÃO: nesse roteador foi configurado rotas estáticas para as rede: 192.168.1.0/24 e 192.168.3.0/24,
+			!também, rotas flutuantes para a rede 192.168.1.0/24 utilizando o Link Serial
+			!OBSERVAÇÃO: na redistribuição de rotas estáticas no protocolo RIPv2 temos a opção de alteração da 
+			!métrica/custo da rota de: 0 até 16 ou transparente
+			redistribute static metric transparent
+			end
+write
+
+!Visualizando as configurações da memória RAM
+show running-config | section interface
+show running-config | section router rip
+
+!Verificando as informações do Protocolo RIPv2 nos Roteadores 2911 e 1941
+show ip router rip
+show ip rip database
+
+!Fazendo o teste de conectividade entre os Hosts da Rede 192.168.2.0/24 e 192.168.3.0/24 e Sub-Redes 192.168.x.0/24
+ping 192.168.100.1
+ping 192.168.3.1
+tracert 192.168.100.1
+tracert 192.168.3.1

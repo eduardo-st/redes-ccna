@@ -1,0 +1,146 @@
+!Autor: Robson Vaamonde
+!Procedimentos em TI: http://procedimentosemti.com.br
+!Bora para Prática: http://boraparapratica.com.br
+!Robson Vaamonde: http://vaamonde.com.br
+!Facebook Procedimentos em TI: https://www.facebook.com/ProcedimentosEmTi
+!Facebook Bora para Prática: https://www.facebook.com/BoraParaPratica
+!Instagram Procedimentos em TI: https://www.instagram.com/procedimentoem
+!YouTUBE Bora Para Prática: https://www.youtube.com/boraparapratica
+!Data de criação: 31/05/2020
+!Data de atualização: 31/05/2020
+!Versão: 0.01
+!Testado e homologado no Cisco Packet Tracer 7.3 e GNS3 2.2.7
+
+!DHCPv6 Stateless (sem estado): O servidor DHCPv6 Stateless não atribui endereços IPv6 aos hosts e nem conserva
+!o estado dos dispositivos a que ele atribui os prefixos de endereços IPv6. Um host se auto-configura com um
+!endereço IPv6 enquanto o servidor DHCPv6 Stateless oferece outras informações de rede, como nome de domínio,
+!servidor DNS, servidor NTP, etc.
+
+!O DHCPv6 Stateless trabalha com o Protocolo ICMPv6 (Internet Control Message Protocol v6) utilizando o recurso do
+!Protocolo ND (Neighbor Discovery) que substitui o Protocolo ARP (Address Resolution Protocol) nas comunicações
+!do Protocolo IPv6. Os hosts e servidores trocam mensagens ND, o host envia mensagens do Tipo RS (Multicast Router
+!Solicitation) a todos os agentes DHCPv6 na rede no endereço de Multicast FF02::1:2 com escopo local, e aguarda as
+!mensagens dos Anúncios dos Roteadores RA (Unicast Router Advertisement), nas mensagens de RA o DHCPv6 Server informa
+!o seu tipo de configuração: Stateful ou Stateless.
+
+!Configuração Automática (Auto-Configuration) do Stateless, também conhecida como Configuração Automática de Endereço
+!Sem Estado (SLAAC - Stateless Address Auto-Configuration), nenhum servidor DHCPv6 é necessário para atribuir os 
+!endereços IPv6 aos hosts, não é necessário a configuração manual dos endereços IPv6 em cada host na rede, o endereço
+!IPv6 é obtido pela combinação do Prefixo (64 bits) e do Endereço MAC da NIC (Network Interface Card).
+
+!O SLAAC utiliza o conceito de EUI-64 (Extended Unique Identifier) que tem como objetivo montar a porção de host do
+!Endereço IPv6 de Link Local, Global Unicast e Unique Local ULA.
+
+!Exemplo do EUI-64 em endereços de Link Local: Prefixo Padrão: FE80::/10 + MAC Address: 55:77:BB:CC:11:22 + FF:FE
+!Endereço de Link Local completo: FE80:0000:0000:0000:5577:BBFF:FECC:1122 adicionado no meio do MAC Address entre as
+!opções de OUI (Organizational Unique Identifier) é o NIC (Network Interface Controller) o valor reservador pelo IEEE
+!da conversão do EUI-64 0xFF:FE é alterando o valor do Bit Universal (7 Bit): de 5 para 7 (converte hexadecimal para 
+!binário - 55 = 0101 0101 para 0101 0111 = 57)
+!Endereço de Link Local resumido é com o 7 Bit alterado: FE80::5777:BBFF:FECC:1122
+
+!Exemplo do EUI-64 em endereços de Global Unicast: Prefixo Padrão: 2001:ABCD:1234:3::/64 MAC: 55:77:BB:CC:11:22 + FF:FE
+!Endereço de Global Unicast completo: 2001:ABCD:1234:0003:5577:BBFF:FECC:1122/64
+!Endereço de Global Unicast resumido é com o 7 Bit alterado: 2001:ABCD:1234:3:5777:BBFF:FECC:1122/64
+
+!PRIMEIRA ETAPA: Configuração do Endereço IPv6 Estático do Servidor do DNS do Google
+!Faixa Link Local: FE80::/10
+!Faixa Global Unicast: 2001:abcd:1234:8::/64
+!Endereço IPv6 Unicast Global: 2001:abcd:1234:8::8/64
+!Endereço IPv6 Link Local: FE80::8
+!Endereço IPv6 do Gateway: FE80::254
+!Endereço IPv6 do DNS Server: 2001:abcd:1234:8::8
+
+!SEGUNDA ETAPA: Configuração do Router 1941 do DNS do Google
+enable
+	configure terminal
+
+		!Habilitando o Recurso do IPv6 Unicast Routing no Router 1941
+		ipv6 unicast-routing
+
+		!Configurando o DHCPv6 Pool Stateless (Escopo) do Router 1941
+		!DICA: na configuração do DHCPv6 Stateless é configurado apenas informações básicas da rede
+		ipv6 dhcp pool stateless_google
+
+			!Configurando o Nome de Domínio no Pool do DHCPv6
+			domain-name google.com
+
+			!Configurando o Endereço IPv6 do Servidor de DNS no Pool do DHCPv6
+			dns-server 2001:abcd:1234:8::8
+			exit
+
+		!Configurando a Interface de LAN da Rede do DNS do Google
+		interface gigabitEthernet 0/0
+
+			!Configuração dos Endereços IPv6 de Link Local e Global Unicast
+			ipv6 enable
+			ipv6 address fe80::254 link-local
+			ipv6 address 2001:abcd:1234:8::254/64
+			exit
+
+		!Configurando a Interface de WAN da Rede do DNS do Google
+		interface gigabitEthernet 0/1
+
+			!Configuração dos Endereços IPv6 de Link Local e Global Unicast
+			ipv6 enable
+			ipv6 address fe80::126 link-local
+			ipv6 address 2001:abcd:1234:200::126/64
+			
+			!Habilitando o Serviço do DHCPv6 Server Stateless na Interface de WAN 
+			!DICA: essa configuração habilita na interface o recurso do DHCPv6 Server utilizando o Pool criado
+			!OBSERVAÇÃO: o nome do Pool (escopo) configurado inicialmente tem que ser igual nessa configuração
+			ipv6 dhcp server stateless_google
+			
+			!Configuração das Informações Complementares do Serviço do DHCPv6 Stateless
+			!DICA: essa configuração informa para os hosts do DHCPv6 que as informações complementares devem
+			!ser aprendidas pelo serviço do DHCPv6 Server (Domain Name, DNS Server, etc) configuradas no Pool
+			!OBSERVAÇÃO: através do recurso do protocolo ICMPv6, o host utiliza o recurso do Protocolo ND que
+			!ativa a Flag O (other-config-flag) nas solitações das configurações dos endereços IPv6 
+			ipv6 nd other-config-flag
+			exit
+		
+		!Configurando a Rota Padrão IPv6 de Saída do Router 1941
+		!OBSERVAÇÃO: mesma configuração utilizada no Script da Etapa-042, essa configuração tem como objetivo
+		!criar a Rota Padrão de Retorno para os hosts IPv6 da Rede do Router 2911-1
+		ipv6 route ::/0 gigabitEthernet 0/1
+		end
+write
+
+!ERRATA: NO VÍDEO, QUANDO EU FAÇO O TESTE DE CONECTIVIDADE DO SERVIDOR COM O ROUTER, UTILIZANDO O COMANDO PING, NO
+!TESTE DE LINK LOCAL ESTÁ OK, NO GLOBAL UNICAST UTILIZO O ENDEREÇO: 2001:ABCD:1234:8::8 O CORRETO SERIA O ENNDEREÇO
+!DO GATEWAY: 2001:ABCD:1234:8::254. (OBSERVAÇÃO: OS DOIS TESTES FUNCIONA PERFEITAMENTE)
+
+!TERCEIRA ETAPA: Configuração do Router 2911-1 da Terceira Topologia
+enable
+	configure terminal
+		ipv6 unicast-routing
+		
+		!Configurando a Interface do Router 2911-1 para configurar o Endereço IPv6 via SLAAC
+		!DICA: interface configurada com o recurso de Auto-Configuração geralmente são utilizadas em Link de
+		!Conexão com a Internet ou configurações de Redes WAN especifícas (Links Privados, VPN, etc)
+		!OBSERVAÇÃO: nesse cenário a Interface de WAN do Router 2911 vai obter o Prefixo de Rede Global Unicast
+		!do Router 1941 é as configurações de Domínio é DNS, o Sufixo de Rede será configurado utilizando o 
+		!recurso do EUI-64 (MAC Address + FF:FE), essa configuração também será feita no Link Local da Interface
+		interface gigabitEthernet 0/1
+			ipv6 enable
+			ipv6 address autoconfig
+			exit
+
+		!Configurando a Rota Padrão IPv6 de Saída do Router 2911
+		!OBSERVAÇÃO: nesse cenário, á configuração da Rota Padrão de Saída é totalmente declarada, indicando
+		!a interface de saída é o Endereço IPv6 de Link Local de Próximo Salto
+		ipv6 route ::/0 gigabitEthernet 0/1 FE80::126
+		end
+write
+
+!Visualizando as configurações da memória RAM
+show running-config | section interface
+
+!Visualizando as informações dos endereços IPv6
+show ipv6 interface brief
+show ipv6 dhcp pool
+show ipv6 dhcp interface
+show ipv6 dhcp binding
+show ipv6 route
+ping fe80::254
+ping 2001:abcd:1234:8::254
+ping 2001:abcd:1234:8::8
